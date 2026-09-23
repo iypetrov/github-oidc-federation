@@ -73,3 +73,66 @@ def test_oidc_federation_entry_empty_permissions_allowed():
         principals=None,
     )
     assert entry.permissions == {}
+
+
+# --- GitHubAppCredentials.matches ---
+
+
+def _make_credential(host: str, selectors=None) -> models.GitHubAppCredentials:
+    return models.GitHubAppCredentials(
+        private_key='dummy',
+        app_id=1,
+        host=host,
+        selectors=selectors,
+    )
+
+
+def test_matches_without_selectors_same_host():
+    cred = _make_credential('github.example.com')
+    assert cred.matches('github.example.com/org/repo') is True
+
+
+def test_matches_without_selectors_different_host():
+    cred = _make_credential('github.example.com')
+    assert cred.matches('other.example.com/org/repo') is False
+
+
+def test_matches_with_selectors_correct_host_and_org():
+    cred = _make_credential(
+        'github.example.com',
+        selectors=(models.GitHubAppSelector(org='my-org'),),
+    )
+    assert cred.matches('github.example.com/my-org/repo') is True
+
+
+def test_matches_with_selectors_correct_host_wrong_org():
+    cred = _make_credential(
+        'github.example.com',
+        selectors=(models.GitHubAppSelector(org='my-org'),),
+    )
+    assert cred.matches('github.example.com/other-org/repo') is False
+
+
+def test_matches_with_selectors_wrong_host_matching_org():
+    # This is the security-relevant case: same org name, different host must not match.
+    cred = _make_credential(
+        'victim.example.com',
+        selectors=(models.GitHubAppSelector(org='shared-org'),),
+    )
+    assert cred.matches('attacker.example.com/shared-org/repo') is False
+
+
+def test_matches_with_selectors_correct_host_and_repo():
+    cred = _make_credential(
+        'github.example.com',
+        selectors=(models.GitHubAppSelector(org='my-org', repos=('allowed-repo',)),),
+    )
+    assert cred.matches('github.example.com/my-org/allowed-repo') is True
+
+
+def test_matches_with_selectors_correct_host_wrong_repo():
+    cred = _make_credential(
+        'github.example.com',
+        selectors=(models.GitHubAppSelector(org='my-org', repos=('allowed-repo',)),),
+    )
+    assert cred.matches('github.example.com/my-org/other-repo') is False

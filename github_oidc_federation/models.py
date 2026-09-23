@@ -32,7 +32,7 @@ class GitHubAppCredentials:
         host, org, repo = get_host_org_and_repo_from_url(repo_url)
         if self.selectors is None:
             return self.host == host
-        return any(
+        return self.host == host and any(
             selector.org == org and (selector.repos is None or repo in selector.repos)
             for selector in self.selectors
         )
